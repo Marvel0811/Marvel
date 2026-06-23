@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forex Trading Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div id="app"></div>
+    <script>
+        const DEMO = [{id:1,pair:'EUR/USD',type:'BUY',entry:1.0850,exit:1.0890,stopLoss:1.0820,takeProfit:1.0900,lotSize:0.1,openTime:'2026-06-23T09:30',closeTime:'2026-06-23T14:20',profit:40,profitUSD:40,setup:'Trend Following',emotion:'Confident',notes:'Yaxshi trend'},{id:2,pair:'GBP/USD',type:'SELL',entry:1.2650,exit:1.2680,stopLoss:1.2700,takeProfit:1.2600,lotSize:0.1,openTime:'2026-06-23T11:00',closeTime:'2026-06-23T15:45',profit:-30,profitUSD:-30,setup:'Reversal',emotion:'Fearful',notes:'Stop Loss ga yetdi'}];
+        const PAIRS=['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CHF','NZD/USD','USD/CAD'];
+        const SETUPS=['Trend Following','Breakout','Reversal','Range Trading','News Trading'];
+        const EMOTIONS=['Confident','Fearful','Greedy','Neutral','Revenge Trading'];
+        let state={trades:[],activeTab:'dashboard',showAddModal:false};
+        
+        function loadTrades(){const s=localStorage.getItem('forexTrades');state.trades=s?JSON.parse(s):DEMO;}
+        function saveTrades(){localStorage.setItem('forexTrades',JSON.stringify(state.trades));}
+        
+        function calculateStats(trades){
+            if(!trades.length)return{totalTrades:0,winTrades:0,lossTrades:0,winRate:0,totalProfit:0,totalLoss:0,netProfit:0,avgWin:0,avgLoss:0,profitFactor:0,bestTrade:0,worstTrade:0};
+            const wins=trades.filter(t=>t.profitUSD>0);
+            const losses=trades.filter(t=>t.profitUSD<0);
+            const totalProfit=wins.reduce((s,t)=>s+t.profitUSD,0);
+            const totalLoss=Math.abs(losses.reduce((s,t)=>s+t.profitUSD,0));
+            const netProfit=totalProfit-totalLoss;
+            const avgWin=wins.length?totalProfit/wins.length:0;
+            const avgLoss=losses.length?totalLoss/losses.length:0;
+            const profitFactor=totalLoss?totalProfit/totalLoss:totalProfit;
+            const bestTrade=Math.max(...trades.map(t=>t.profitUSD),0);
+            const worstTrade=Math.min(...trades.map(t=>t.profitUSD),0);
+            return{totalTrades:trades.length,winTrades:wins.length,lossTrades:losses.length,winRate:((wins.length/trades.length)*100).toFixed(1),totalProfit:totalProfit.toFixed(2),totalLoss:totalLoss.toFixed(2),netProfit:netProfit.toFixed(2),avgWin:avgWin.toFixed(2),avgLoss:avgLoss.toFixed(2),profitFactor:profitFactor.toFixed(2),bestTrade:bestTrade.toFixed(2),worstTrade:worstTrade.toFixed(2)};
+        }
+        
+        function addTrade(formData){
+            const pips=((formData.exit-formData.entry)*(formData.type==='BUY'?1:-1)*10000).toFixed(0);
+            const profitUSD=parseFloat(((formData.exit-formData.entry)*(formData.type==='BUY'?1:-1)*100000*formData.lotSize).toFixed(2));
+            const trade={...formData,id:Date.now(),profit:pips,profitUSD:profitUSD};
+            state.trades=[trade,...state.trades];
+            saveTrades();
+            state.showAddModal=false;
+            render();
+        }
+        
+        function deleteTrade(id){
+            if(confirm('Bu tradeni o\'chirmoqchimisiz?')){
+                state.trades=state.trades.filter(t=>t.id!==id);
+                saveTrades();
+                render();
+            }
+        }
+        
+        function renderDashboard(){
+            const stats=calculateStats(state.trades);
+            const recent=state.trades.slice(0,5);
+            return`<div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-xl shadow-md p-6"><div class="flex justify-between"><div><p class="text-gray-500 text-sm">Jami Tradelar</p><p class="text-3xl font-bold">${stats.totalTrades}</p></div><div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-2xl">📊</div></div></div>
+                    <div class="bg-white rounded-xl shadow-md p-6"><div class="flex justify-between"><div><p class="text-gray-500 text-sm">Win Rate</p><p class="text-3xl font-bold text-green-600">${stats.winRate}%</p><p class="text-xs text-gray-400">${stats.winTrades}/${stats.lossTrades}</p></div><div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center text-2xl">🎯</div></div></div>
+                    <div class="bg-white rounded-xl shadow-md p-6"><div class="flex justify-between"><div><p class="text-gray-500 text-sm">Net Profit</p><p class="text-3xl font-bold ${stats.netProfit>=0?'text-green-600':'text-red-600'}">$${stats.netProfit}</p></div><div class="w-12 h-12 bg-gradient-to-br ${stats.netProfit>=0?'from-green-500 to-green-600':'from-red-500 to-red-600'} rounded-lg flex items-center justify-center text-2xl">💰</div></div></div>
+                    <div class="bg-white rounded-xl shadow-md p-6"><div class="flex justify-between"><div><p class="text-gray-500 text-sm">Profit Factor</p><p class="text-3xl font-bold text-purple-600">${stats.profitFactor}</p></div><div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center text-2xl">📈</div></div></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-md p-6"><h3 class="font-bold text-lg mb-4">💵 Foyda/Zarar</h3><div class="space-y-3"><div class="flex justify-between py-2 border-b"><span>Jami Foyda</span><span class="font-bold text-green-600">$${stats.totalProfit}</span></div><div class="flex justify-between py-2 border-b"><span>Jami Zarar</span><span class="font-bold text-red-600">$${stats.totalLoss}</span></div><div class="flex justify-between py-2 border-b"><span>O'rtacha Foyda</span><span class="font-bold">$${stats.avgWin}</span></div><div class="flex justify-between py-2"><span>O'rtacha Zarar</span><span class="font-bold">$${stats.avgLoss}</span></div></div></div>
+                    <div class="bg-white rounded-xl shadow-md p-6"><h3 class="font-bold text-lg mb-4">🏆 Eng Yaxshi/Yomon</h3><div class="space-y-3"><div class="flex justify-between py-2 border-b"><span>Eng Yaxshi</span><span class="font-bold text-green-600">$${stats.bestTrade}</span></div><div class="flex justify-between py-2 border-b"><span>Eng Yomon</span><span class="font-bold text-red-600">$${stats.worstTrade}</span></div></div></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6"><h3 class="font-bold text-lg mb-4">📋 Oxirgi Tradelar</h3>${recent.length?'<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="border-b-2"><tr><th class="text-left py-3">Vaqt</th><th class="text-left py-3">Juftlik</th><th class="text-left py-3">Turi</th><th class="text-right py-3">Entry</th><th class="text-right py-3">Exit</th><th class="text-right py-3">Profit</th></tr></thead><tbody>'+recent.map(t=>'<tr class="border-b hover:bg-gray-50"><td class="py-3">'+new Date(t.closeTime).toLocaleDateString('uz-UZ')+'</td><td class="py-3 font-medium">'+t.pair+'</td><td class="py-3"><span class="px-2 py-1 rounded text-xs font-bold '+(t.type==='BUY'?'bg-green-100 text-green-700':'bg-red-100 text-red-700')+'">'+t.type+'</span></td><td class="py-3 text-right">'+t.entry+'</td><td class="py-3 text-right">'+t.exit+'</td><td class="py-3 text-right font-bold '+(t.profitUSD>=0?'text-green-600':'text-red-600')+'">$'+t.profitUSD+'</td></tr>').join('')+'</tbody></table></div>':'<p class="text-center text-gray-500 py-8">Hali tradelar yo\'q</p>'}</div>
+            </div>`;
+        }
+        
+        function renderTradeList(){
+            if(!state.trades.length)return'<div class="bg-white rounded-xl shadow-md p-12 text-center"><div class="text-6xl mb-4">📊</div><h3 class="text-xl font-bold mb-2">Hali tradelar yo\'q</h3><p class="text-gray-500">Yuqoridagi "Yangi Trade" tugmasini bosing</p></div>';
+            return'<div class="space-y-4">'+state.trades.map(t=>'<div class="bg-white rounded-xl shadow-md p-6"><div class="flex flex-col lg:flex-row gap-4 justify-between"><div class="flex-1"><div class="flex items-center gap-3 mb-3 flex-wrap"><span class="text-2xl font-bold">'+t.pair+'</span><span class="px-3 py-1 rounded-lg text-sm font-bold '+(t.type==='BUY'?'bg-green-100 text-green-700':'bg-red-100 text-red-700')+'">'+t.type+'</span><span class="px-3 py-1 rounded-lg text-sm font-bold '+(t.profitUSD>=0?'bg-green-500 text-white':'bg-red-500 text-white')+'">'+(t.profitUSD>=0?'+':'')+t.profit+' pips</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3"><div><p class="text-gray-500">Entry</p><p class="font-semibold">'+t.entry+'</p></div><div><p class="text-gray-500">Exit</p><p class="font-semibold">'+t.exit+'</p></div><div><p class="text-gray-500">Stop Loss</p><p class="font-semibold text-red-600">'+(t.stopLoss||'-')+'</p></div><div><p class="text-gray-500">Take Profit</p><p class="font-semibold text-green-600">'+(t.takeProfit||'-')+'</p></div></div><div class="text-sm text-gray-600 mb-2">📊 Lot: '+t.lotSize+' | 🎯 '+t.setup+' | 🧠 '+t.emotion+'</div>'+(t.notes?'<div class="p-3 bg-gray-50 rounded-lg text-sm mb-2"><span class="font-semibold">📝 Izoh:</span> '+t.notes+'</div>':'')+'<div class="text-xs text-gray-500">⏰ '+new Date(t.openTime).toLocaleString('uz-UZ')+' → '+new Date(t.closeTime).toLocaleString('uz-UZ')+'</div></div><div class="flex lg:flex-col items-center lg:items-end gap-4"><div class="text-center lg:text-right"><p class="text-sm text-gray-500 mb-1">Profit/Loss</p><p class="text-3xl font-bold '+(t.profitUSD>=0?'text-green-600':'text-red-600')+'">'+(t.profitUSD>=0?'+':'')+'$'+t.profitUSD+'</p></div><button onclick="deleteTrade('+t.id+')" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-semibold">🗑️ O\'chirish</button></div></div></div>').join('')+'</div>';
+        }
+        
+        function renderStats(){
+            const stats=calculateStats(state.trades);
+            if(!state.trades.length)return'<div class="bg-white rounded-xl shadow-md p-12 text-center"><div class="text-6xl mb-4">📈</div><h3 class="text-xl font-bold mb-2">Statistika mavjud emas</h3><p class="text-gray-500">Avval tradelar qo\'shing</p></div>';
+            const pairStats={};
+            state.trades.forEach(t=>{if(!pairStats[t.pair])pairStats[t.pair]={wins:0,losses:0,profit:0};if(t.profitUSD>0)pairStats[t.pair].wins++;else pairStats[t.pair].losses++;pairStats[t.pair].profit+=t.profitUSD;});
+            const setupStats={};
+            state.trades.forEach(t=>{if(!setupStats[t.setup])setupStats[t.setup]={wins:0,losses:0,profit:0};if(t.profitUSD>0)setupStats[t.setup].wins++;else setupStats[t.setup].losses++;setupStats[t.setup].profit+=t.profitUSD;});
+            return'<div class="space-y-6"><div class="bg-white rounded-xl shadow-md p-6"><h2 class="text-2xl font-bold mb-6">📊 Umumiy Statistika</h2><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl"><p class="text-sm opacity-90 mb-2">Jami Tradelar</p><p class="text-3xl font-bold">'+stats.totalTrades+'</p></div><div class="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl"><p class="text-sm opacity-90 mb-2">Yutgan</p><p class="text-3xl font-bold">'+stats.winTrades+'</p></div><div class="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl"><p class="text-sm opacity-90 mb-2">Yutqazgan</p><p class="text-3xl font-bold">'+stats.lossTrades+'</p></div><div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl"><p class="text-sm opacity-90 mb-2">Win Rate</p><p class="text-3xl font-bold">'+stats.winRate+'%</p></div><div class="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-6 rounded-xl"><p class="text-sm opacity-90 mb-2">Profit Factor</p><p class="text-3xl font-bold">'+stats.profitFactor+'</p></div><div class="bg-gradient-to-br '+(stats.netProfit>=0?'from-green-500 to-green-600':'from-red-500 to-red-600')+' text-white p-6 rounded-xl"><p class="text-sm opacity-90 mb-2">Net Profit</p><p class="text-3xl font-bold">$'+stats.netProfit+'</p></div></div></div><div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-xl font-bold mb-4">💱 Valyuta Juftlari</h3><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="border-b-2"><tr><th class="text-left py-3">Juftlik</th><th class="text-center py-3">Jami</th><th class="text-center py-3">Yutish</th><th class="text-center py-3">Zarar</th><th class="text-center py-3">Win Rate</th><th class="text-right py-3">Profit</th></tr></thead><tbody>'+Object.entries(pairStats).map(([pair,data])=>{const total=data.wins+data.losses;const winRate=((data.wins/total)*100).toFixed(1);return'<tr class="border-b hover:bg-gray-50"><td class="py-3 font-medium">'+pair+'</td><td class="py-3 text-center">'+total+'</td><td class="py-3 text-center text-green-600 font-semibold">'+data.wins+'</td><td class="py-3 text-center text-red-600 font-semibold">'+data.losses+'</td><td class="py-3 text-center"><span class="px-2 py-1 rounded '+(winRate>=50?'bg-green-100 text-green-700':'bg-red-100 text-red-700')+'">'+winRate+'%</span></td><td class="py-3 text-right font-bold '+(data.profit>=0?'text-green-600':'text-red-600')+'">$'+data.profit.toFixed(2)+'</td></tr>';}).join('')+'</tbody></table></div></div><div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-xl font-bold mb-4">🎯 Setup bo\'yicha</h3><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="border-b-2"><tr><th class="text-left py-3">Setup</th><th class="text-center py-3">Jami</th><th class="text-center py-3">Yutish</th><th class="text-center py-3">Zarar</th><th class="text-center py-3">Win Rate</th><th class="text-right py-3">Profit</th></tr></thead><tbody>'+Object.entries(setupStats).map(([setup,data])=>{const total=data.wins+data.losses;const winRate=((data.wins/total)*100).toFixed(1);return'<tr class="border-b hover:bg-gray-50"><td class="py-3 font-medium">'+setup+'</td><td class="py-3 text-center">'+total+'</td><td class="py-3 text-center text-green-600 font-semibold">'+data.wins+'</td><td class="py-3 text-center text-red-600 font-semibold">'+data.losses+'</td><td class="py-3 text-center"><span class="px-2 py-1 rounded '+(winRate>=50?'bg-green-100 text-green-700':'bg-red-100 text-red-700')+'">'+winRate+'%</span></td><td class="py-3 text-right font-bold '+(data.profit>=0?'text-green-600':'text-red-600')+'">$'+data.profit.toFixed(2)+'</td></tr>';}).join('')+'</tbody></table></div></div></div>';
+        }
+        
+        function renderAddModal(){
+            if(!state.showAddModal)return'';
+            return'<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="if(event.target===this){state.showAddModal=false;render();}"><div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"><div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center"><h2 class="text-2xl font-bold">📊 Yangi Trade</h2><button onclick="state.showAddModal=false;render();" class="text-2xl text-gray-400 hover:text-gray-600">✕</button></div><form onsubmit="handleAddTrade(event)" class="p-6 space-y-4"><div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-semibold mb-2">Valyuta Jufti</label><select name="pair" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500">'+PAIRS.map(p=>'<option value="'+p+'">'+p+'</option>').join('')+'</select></div><div><label class="block text-sm font-semibold mb-2">Buy/Sell</label><select name="type" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-semibold mb-2">Entry Narx *</label><input type="number" step="0.00001" name="entry" placeholder="1.08500" required class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></div><div><label class="block text-sm font-semibold mb-2">Exit Narx *</label><input type="number" step="0.00001" name="exit" placeholder="1.08900" required class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-semibold mb-2">Stop Loss</label><input type="number" step="0.00001" name="stopLoss" placeholder="1.08200" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500"></div><div><label class="block text-sm font-semibold mb-2">Take Profit</label><input type="number" step="0.00001" name="takeProfit" placeholder="1.09000" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500"></div></div><div><label class="block text-sm font-semibold mb-2">Lot Hajmi</label><input type="number" step="0.01" name="lotSize" value="0.1" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-semibold mb-2">Ochilgan Vaqt</label><input type="datetime-local" name="openTime" value="'+new Date().toISOString().slice(0,16)+'" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></div><div><label class="block text-sm font-semibold mb-2">Yopilgan Vaqt</label><input type="datetime-local" name="closeTime" value="'+new Date().toISOString().slice(0,16)+'" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-semibold mb-2">Setup</label><select name="setup" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500">'+SETUPS.map(s=>'<option value="'+s+'">'+s+'</option>').join('')+'</select></div><div><label class="block text-sm font-semibold mb-2">Emotsiya</label><select name="emotion" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500">'+EMOTIONS.map(e=>'<option value="'+e+'">'+e+'</option>').join('')+'</select></div></div><div><label class="block text-sm font-semibold mb-2">Izohlar</label><textarea name="notes" rows="3" placeholder="Trade haqida izoh..." class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"></textarea></div><div class="flex gap-3 pt-4"><button type="submit" class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-3 rounded-lg font-semibold">✅ Saqlash</button><button type="button" onclick="state.showAddModal=false;render();" class="px-8 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Bekor</button></div></form></div></div>';
+        }
+        
+        function render(){
+            let content='';
+            if(state.activeTab==='dashboard')content=renderDashboard();
+            else if(state.activeTab==='trades')content=renderTradeList();
+            else if(state.activeTab==='stats')content=renderStats();
+            document.getElementById('app').innerHTML='<header class="bg-white shadow-md"><div class="container mx-auto px-4 py-4 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center"><span class="text-white font-bold text-xl">FX</span></div><div><h1 class="text-2xl font-bold">Forex Trading Journal</h1><p class="text-sm text-gray-500">Tradelaringizni kuzatib boring</p></div></div><button onclick="state.showAddModal=true;render();" class="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg flex items-center gap-2"><span class="text-xl">+</span><span>Yangi Trade</span></button></div></header><nav class="bg-white border-b"><div class="container mx-auto px-4 flex gap-8">'+[{id:'dashboard',label:'📊 Dashboard'},{id:'trades',label:'📋 Tradelar'},{id:'stats',label:'📈 Statistika'}].map(tab=>'<button onclick="state.activeTab=\''+tab.id+'\';render();" class="py-4 font-medium border-b-2 '+(state.activeTab===tab.id?'border-blue-500 text-blue-600':'border-transparent text-gray-500 hover:text-gray-700')+'">'+tab.label+'</button>').join('')+'</div></nav><main class="container mx-auto px-4 py-8">'+content+'</main>'+renderAddModal();
+        }
+        
+        function handleAddTrade(e){
+            e.preventDefault();
+            const form=e.target;
+            const formData={pair:form.pair.value,type:form.type.value,entry:parseFloat(form.entry.value),exit:parseFloat(form.exit.value),stopLoss:parseFloat(form.stopLoss.value)||0,takeProfit:parseFloat(form.takeProfit.value)||0,lotSize:parseFloat(form.lotSize.value),openTime:form.openTime.value,closeTime:form.closeTime.value,setup:form.setup.value,emotion:form.emotion.value,notes:form.notes.value};
+            addTrade(formData);
+        }
+        
+        loadTrades();
+        render();
+    </script>
+</body>
+</html>
