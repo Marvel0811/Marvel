@@ -1,0 +1,6 @@
+name = "forex-bot-webhook"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+BOT_TOKEN = "8269807517:AAGmyZ4qkK2P3mVeDqeg8ItgpmMM9CimgMo"

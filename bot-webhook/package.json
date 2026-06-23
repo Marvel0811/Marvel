@@ -1,0 +1,12 @@
+{
+  "name": "forex-bot-webhook",
+  "version": "1.0.0",
+  "description": "Forex Trading Journal - Telegram Bot (Webhook)",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "keywords": ["telegram", "bot", "forex", "trading"],
+  "author": "AI Assistant",
+  "license": "MIT"
+}
